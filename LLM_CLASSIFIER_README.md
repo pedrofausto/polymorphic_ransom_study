@@ -31,18 +31,6 @@ This tool demonstrates how Large Language Models (LLMs) can be used to identify 
 
 ### Installation
 
-#### Python Version (Recommended)
-
-```bash
-# Install dependencies
-pip install anthropic openai  # Optional, for LLM API support
-
-# Make executable
-chmod +x llm_backup_classifier.py
-```
-
-#### C Version
-
 ```bash
 # Install dependencies (Ubuntu/Debian)
 sudo apt-get install libcurl4-openssl-dev libjson-c-dev
@@ -57,38 +45,22 @@ gcc -o llm_backup llm_backup_classifier.c -lcurl -ljson-c
 
 ```bash
 # Scan current directory
-python3 llm_backup_classifier.py
+./llm_backup
 
 # Scan specific directory
-python3 llm_backup_classifier.py /path/to/scan
+./llm_backup /path/to/scan
 ```
 
-#### With Anthropic Claude
+#### Extending with LLM API
 
-```bash
-# Set API key
-export ANTHROPIC_API_KEY="your-api-key-here"
+The C implementation includes commented template code for integrating LLM APIs. To enable:
 
-# Run with Anthropic
-python3 llm_backup_classifier.py --llm-provider anthropic
-```
+1. **Uncomment the LLM integration section** in the source code
+2. **Implement API calls** using libcurl (examples provided)
+3. **Parse JSON responses** using json-c library
+4. **Recompile** with your changes
 
-#### With OpenAI GPT
-
-```bash
-# Set API key
-export OPENAI_API_KEY="your-api-key-here"
-
-# Run with OpenAI
-python3 llm_backup_classifier.py --llm-provider openai
-```
-
-#### Classification Only (No Backup)
-
-```bash
-# Analyze without creating backups
-python3 llm_backup_classifier.py --no-backup
-```
+See the commented `classify_files_with_llm_real()` function in the source code for a template.
 
 ### How It Works
 
@@ -210,46 +182,44 @@ The LLM analyzes filenames for indicators of:
 
 ### API Configuration
 
-#### Anthropic Claude
+#### LLM Integration Template (in C)
 
-```python
-# In llm_backup_classifier.py
-import anthropic
+The source code includes a commented template for API integration:
 
-client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-message = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
-    max_tokens=2000,
-    messages=[{"role": "user", "content": prompt}]
-)
+```c
+/*
+ * PRODUCTION LLM INTEGRATION EXAMPLE (commented out in source):
+ */
+int classify_files_with_llm_real(FileInfo* files, int file_count) {
+    CURL *curl;
+    CURLcode res;
+    struct MemoryStruct chunk;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+
+    if(curl) {
+        char* prompt = build_llm_prompt(files, file_count);
+
+        // Build JSON request
+        struct json_object *jobj = json_object_new_object();
+        json_object_object_add(jobj, "prompt", json_object_new_string(prompt));
+
+        // Set API endpoint and headers
+        curl_easy_setopt(curl, CURLOPT_URL, "https://api.anthropic.com/v1/complete");
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_str);
+
+        // Perform request and parse response
+        res = curl_easy_perform(curl);
+
+        // ... handle response ...
+    }
+
+    return sensitive_count;
+}
 ```
 
-#### OpenAI GPT
-
-```python
-import openai
-
-openai.api_key = os.getenv('OPENAI_API_KEY')
-response = openai.ChatCompletion.create(
-    model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are a file classification assistant."},
-        {"role": "user", "content": prompt}
-    ]
-)
-```
-
-#### Local LLM (Ollama)
-
-```python
-# Example integration with Ollama
-import requests
-
-response = requests.post('http://localhost:11434/api/generate', json={
-    'model': 'llama2',
-    'prompt': prompt
-})
-```
+Uncomment and customize this function for production LLM integration.
 
 ### File Structure
 
@@ -318,34 +288,52 @@ response = requests.post('http://localhost:11434/api/generate', json={
 
 #### Custom Classification Rules
 
-```python
-# Add to _classify_rule_based()
-custom_keywords = ['project_alpha', 'internal_only']
+Add custom keywords to the `classify_files_with_llm()` function:
 
-for keyword in custom_keywords:
-    if keyword in filename_lower:
-        file.is_sensitive = True
-        file.reason = f"Custom rule: {keyword}"
+```c
+// In classify_files_with_llm()
+const char* custom_keywords[] = {
+    "project_alpha", "internal_only", "confidential",
+    NULL
+};
+
+// Add to existing keyword check loop
+for (int k = 0; custom_keywords[k] != NULL; k++) {
+    if (strstr(lowercase_name, custom_keywords[k]) != NULL) {
+        files[i].is_sensitive = 1;
+        snprintf(files[i].reason, sizeof(files[i].reason),
+                "Custom rule: %s", custom_keywords[k]);
+        sensitive_count++;
+        break;
+    }
+}
 ```
 
 #### Integration with Backup Systems
 
-```python
-# Example: Copy to cloud storage
-import boto3
+Modify the `create_backup()` function to integrate with external systems:
 
-def backup_to_s3(file_path, bucket_name):
-    s3 = boto3.client('s3')
-    s3.upload_file(file_path, bucket_name, file_path)
+```c
+void create_backup(FileInfo* file) {
+    // ... existing backup code ...
+
+    // Add cloud storage integration
+    // system("aws s3 cp backup_path s3://bucket/");
+    // Or call cloud SDK APIs
+}
 ```
 
-#### Custom LLM Providers
+#### Custom LLM Integration
 
-```python
-def _classify_custom_llm(self) -> int:
-    """Integrate your own LLM service"""
-    # Your implementation here
-    pass
+Implement your own LLM service in the commented template function:
+
+```c
+int classify_with_custom_llm(FileInfo* files, int file_count) {
+    // Your custom LLM service integration
+    // Use libcurl for HTTP requests
+    // Parse responses with json-c
+    return sensitive_count;
+}
 ```
 
 ### License

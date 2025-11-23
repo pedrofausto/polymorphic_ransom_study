@@ -44,8 +44,7 @@ Polymorphic code changes its binary signature on each execution while maintainin
 |------|-------------|
 | `polymorphic_demo_linux.c` | Linux/ELF64 implementation (clean, educational) |
 | `polymorphic_demo_windows.c` | Windows/PE implementation (clean, educational) |
-| `llm_backup_classifier.py` | **NEW**: LLM-based file classifier for automated backups |
-| `llm_backup_classifier.c` | C version of LLM classifier |
+| `llm_backup_classifier.c` | **NEW**: LLM-based file classifier for automated backups |
 | `main.c` | Original proof-of-concept (legacy) |
 | `TECHNICAL_DOCUMENTATION.md` | Comprehensive technical documentation |
 | `LLM_CLASSIFIER_README.md` | Documentation for LLM classifier tool |
@@ -95,15 +94,14 @@ certutil -hashfile demo.exe SHA256
 **Educational tool demonstrating AI-driven file classification for automated backups**
 
 ```bash
+# Compile
+gcc -o llm_backup llm_backup_classifier.c -lcurl -ljson-c
+
 # Basic usage (rule-based classification)
-python3 llm_backup_classifier.py
+./llm_backup
 
-# With LLM API (Anthropic Claude)
-export ANTHROPIC_API_KEY="your-key"
-python3 llm_backup_classifier.py --llm-provider anthropic
-
-# Classification only (no backup creation)
-python3 llm_backup_classifier.py --no-backup
+# Scan specific directory
+./llm_backup /path/to/directory
 ```
 
 **What it does:**
@@ -112,6 +110,11 @@ python3 llm_backup_classifier.py --no-backup
 - Creates timestamped backup copies (no encryption)
 - Generates classification report with confidence scores
 - **Original files remain unchanged**
+
+**Current implementation:**
+- Rule-based classification (demonstrates the concept)
+- Template includes commented LLM API integration code
+- Extensible for custom classification logic
 
 See [LLM_CLASSIFIER_README.md](LLM_CLASSIFIER_README.md) for full documentation.
 
