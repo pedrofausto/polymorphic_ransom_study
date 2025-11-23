@@ -32,11 +32,17 @@
 // Global encryption key
 static unsigned char key[KEY_SIZE + 1] = ORIG_KEY;
 
+// Secondary encryption key for additional sections
+static unsigned char file_key[KEY_SIZE + 1] = ORIG_KEY;
+
 // Function prototypes
 void die(char* msg);
 IMAGE_SECTION_HEADER* find_section(void* data, const char* name);
 void mutate_executable(char* exe_path);
 void xor_crypt(unsigned char* data, int len);
+void xor_crypt_file(unsigned char* data, int len);
+void encrypt_file_sections(void* mapped_data);
+void decrypt_runtime_sections() __attribute__((constructor));
 void demonstrate_polymorphism();
 
 int main(int argc, char** argv) {
@@ -106,6 +112,102 @@ void xor_crypt(unsigned char* data, int len) {
     }
 }
 
+void xor_crypt_file(unsigned char* data, int len) {
+    for (int i = 0; i < len; i++) {
+        data[i] ^= (file_key[i % KEY_SIZE] - 1);
+    }
+}
+
+void decrypt_runtime_sections() {
+    // This runs BEFORE main() to decrypt data sections
+    // Only decrypt data sections - code sections must remain unencrypted for execution
+    const char* sections_to_decrypt[] = {".data", ".rdata", NULL};
+
+    // Get own executable path
+    char exe_path[MAX_PATH];
+    if (GetModuleFileNameA(NULL, exe_path, MAX_PATH) == 0) {
+        return;
+    }
+
+    // Open file
+    HANDLE hFile = CreateFileA(exe_path, GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    DWORD file_size = GetFileSize(hFile, NULL);
+    HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (hMapping == NULL) {
+        CloseHandle(hFile);
+        return;
+    }
+
+    void* file_data = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (file_data == NULL) {
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+        return;
+    }
+
+    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)file_data;
+    IMAGE_NT_HEADERS* nt = (IMAGE_NT_HEADERS*)((BYTE*)file_data + dos->e_lfanew);
+    HMODULE hModule = GetModuleHandleA(NULL);
+
+    // Decrypt each data section at runtime
+    for (int i = 0; sections_to_decrypt[i] != NULL; i++) {
+        IMAGE_SECTION_HEADER* section = find_section(file_data, sections_to_decrypt[i]);
+        if (section && section->SizeOfRawData > 0) {
+            BYTE* runtime_ptr = (BYTE*)hModule + section->VirtualAddress;
+            DWORD oldProtect;
+
+            // Make writable
+            VirtualProtect(runtime_ptr, section->Misc.VirtualSize,
+                          PAGE_READWRITE, &oldProtect);
+
+            // Decrypt
+            xor_crypt_file(runtime_ptr, section->Misc.VirtualSize);
+
+            // Restore protection
+            VirtualProtect(runtime_ptr, section->Misc.VirtualSize,
+                          PAGE_READONLY, &oldProtect);
+        }
+    }
+
+    UnmapViewOfFile(file_data);
+    CloseHandle(hMapping);
+    CloseHandle(hFile);
+}
+
+void encrypt_file_sections(void* mapped_data) {
+    // List of data sections to encrypt in the file (NOT code sections like .text)
+    const char* sections_to_encrypt[] = {".data", ".rdata", NULL};
+    int encrypted_count = 0;
+    DWORD total_bytes = 0;
+
+    printf("Encrypting additional file sections:\n");
+
+    for (int i = 0; sections_to_encrypt[i] != NULL; i++) {
+        IMAGE_SECTION_HEADER* section = find_section(mapped_data, sections_to_encrypt[i]);
+        if (section && section->SizeOfRawData > 0) {
+            unsigned char* section_data = (unsigned char*)mapped_data + section->PointerToRawData;
+
+            // Decrypt first if already encrypted
+            xor_crypt_file(section_data, section->SizeOfRawData);
+
+            // Re-encrypt with new file key
+            xor_crypt_file(section_data, section->SizeOfRawData);
+
+            printf("  ✓ Section %-10s (offset: 0x%06x, size: %6u bytes)\n",
+                   sections_to_encrypt[i], section->PointerToRawData, section->SizeOfRawData);
+            encrypted_count++;
+            total_bytes += section->SizeOfRawData;
+        }
+    }
+
+    printf("Total sections encrypted: %d (%u bytes)\n", encrypted_count, total_bytes);
+}
+
 void mutate_executable(char* exe_path) {
     HANDLE hFile = INVALID_HANDLE_VALUE;
     HANDLE hMapping = NULL;
@@ -159,19 +261,29 @@ void mutate_executable(char* exe_path) {
     // Decrypt with old key
     xor_crypt(section_data, poly_section->SizeOfRawData);
 
-    // Generate new random key
-    printf("Generating new encryption key: ");
+    // Generate new random key for .poly section
+    printf("Generating new .poly encryption key: ");
     for (int i = 0; i < KEY_SIZE; i++) {
         key[i] = (unsigned char)(rand() % 255);
         printf("%02x ", key[i]);
     }
     printf("\n");
 
-    // Update key in .data section (would need to find it properly)
-    // For now, just re-encrypt with new key
-
     // Re-encrypt with new key
     xor_crypt(section_data, poly_section->SizeOfRawData);
+
+    // Generate new file encryption key
+    printf("Generating new file encryption key: ");
+    for (int i = 0; i < KEY_SIZE; i++) {
+        file_key[i] = (unsigned char)(rand() % 255);
+        printf("%02x ", file_key[i]);
+    }
+    printf("\n\n");
+
+    // Encrypt additional sections in the file before writing
+    encrypt_file_sections(mapped_data);
+
+    printf("\n--- Writing Encrypted File ---\n");
 
     // Flush changes to disk
     if (!FlushViewOfFile(mapped_data, 0)) {

@@ -23,6 +23,53 @@ This makes the file hash different on each execution, defeating signature-based 
 
 ---
 
+## Enhanced Multi-Section Encryption
+
+**NEW**: The implementations now feature advanced polymorphic behavior by encrypting multiple sections of the executable file before writing to disk:
+
+### Two-Tier Encryption System
+
+1. **Primary Encryption (`.poly` section)**
+   - Encrypts custom polymorphic code section
+   - Uses main encryption key
+   - Decrypted at runtime via memory protection manipulation
+
+2. **File-Level Encryption (additional sections)**
+   - Encrypts `.data`, `.rodata` (Linux) or `.data`, `.rdata` (Windows)
+   - Uses secondary file encryption key
+   - Decrypted by constructor function before `main()` executes
+   - Maximizes file content encryption while maintaining executability
+
+### How It Works
+
+**Before File Creation:**
+```
+1. Decrypt .poly section (in memory)
+2. Generate NEW random key for .poly
+3. Re-encrypt .poly with new key
+4. Generate NEW random key for file sections
+5. Decrypt .data, .rodata (toggle with old key)
+6. Re-encrypt .data, .rodata (toggle with new key)
+7. Write entire encrypted file to disk
+```
+
+**At Runtime (next execution):**
+```
+1. Constructor runs BEFORE main()
+2. Reads own executable from disk
+3. Decrypts .data and .rodata sections in memory
+4. main() executes normally with decrypted data
+```
+
+### Why This Approach?
+
+- **Code sections (`.text`)** remain unencrypted so OS loader can start the program
+- **Data sections** are encrypted on disk, decrypted at runtime
+- **Maximum polymorphism** without breaking executability
+- **Two independent keys** increase mutation complexity
+
+---
+
 ## Implementation Details
 
 ### Linux Version (`polymorphic_demo_linux.c`)
@@ -183,6 +230,17 @@ Both implementations exhibit these suspicious behaviors:
 3. **API Call Sequences**
    - Linux: `open(argv[0])` → `mprotect()` → `unlink()`
    - Windows: `GetModuleFileName()` → `CreateFileMapping()` → `FlushViewOfFile()`
+
+4. **Constructor Functions (NEW)**
+   - Functions marked with `__attribute__((constructor))`
+   - Execute before `main()` - suspicious for decryption routines
+   - Read own executable at startup
+   - Modify memory permissions before program logic
+
+5. **Multi-Key Encryption (NEW)**
+   - Multiple encryption keys in data sections
+   - Dual XOR encryption routines (`xor_crypt` + `xor_crypt_file`)
+   - Sequential encryption of multiple sections
 
 ---
 
