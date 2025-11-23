@@ -26,13 +26,15 @@ Polymorphic code changes its binary signature on each execution while maintainin
 ### What This Does
 
 1. ✅ Reads its own executable file
-2. ✅ Decrypts a custom code section
+2. ✅ Decrypts custom code section (`.poly`)
 3. ✅ Executes benign function (displays system info)
-4. ✅ Generates new random encryption key
-5. ✅ Re-encrypts the code section
-6. ✅ Overwrites itself with mutated version
+4. ✅ Generates TWO new random encryption keys
+5. ✅ Re-encrypts `.poly` section with new key
+6. ✅ **NEW**: Encrypts additional data sections (`.data`, `.rodata`/`.rdata`) before file creation
+7. ✅ Overwrites itself with mutated version
+8. ✅ **NEW**: Constructor function decrypts data sections at next startup
 
-**Result**: Different file hash on every execution!
+**Result**: Different file hash on every execution with multi-section encryption!
 
 ---
 
@@ -197,9 +199,17 @@ Each execution creates a different binary signature.
 
 --- Performing Self-Mutation ---
 Found section '.poly' at offset 0x2000, size 0x180
-Generating new encryption key: 4b 92 c7 1f 83 5a d4 26
+Generating new .poly encryption key: 4b 92 c7 1f 83 5a d4 26
+Generating new file encryption key: a3 7e 91 4c b5 22 d8 6f
+
+Encrypting additional file sections:
+  ✓ Section .data      (offset: 0x003000, size:    512 bytes)
+  ✓ Section .rodata    (offset: 0x003200, size:   1024 bytes)
+Total sections encrypted: 2 (1536 bytes)
+
+--- Writing Encrypted File ---
 ✓ Executable mutated successfully
-✓ New encryption key generated
+✓ New encryption keys generated (2 keys)
 ✓ Next execution will have different binary signature
 ```
 
