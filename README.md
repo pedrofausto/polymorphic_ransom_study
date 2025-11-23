@@ -44,15 +44,20 @@ Polymorphic code changes its binary signature on each execution while maintainin
 |------|-------------|
 | `polymorphic_demo_linux.c` | Linux/ELF64 implementation (clean, educational) |
 | `polymorphic_demo_windows.c` | Windows/PE implementation (clean, educational) |
+| `llm_backup_classifier.py` | **NEW**: LLM-based file classifier for automated backups |
+| `llm_backup_classifier.c` | C version of LLM classifier |
 | `main.c` | Original proof-of-concept (legacy) |
 | `TECHNICAL_DOCUMENTATION.md` | Comprehensive technical documentation |
+| `LLM_CLASSIFIER_README.md` | Documentation for LLM classifier tool |
 | `LICENSE` | MIT License |
 
 ---
 
 ## Quick Start
 
-### Linux
+### Polymorphic Code Demos
+
+#### Linux
 
 ```bash
 # Compile
@@ -67,7 +72,7 @@ sha256sum demo
 sha256sum demo
 ```
 
-### Windows
+#### Windows
 
 ```bash
 # Compile (MinGW)
@@ -84,6 +89,31 @@ certutil -hashfile demo.exe SHA256
 demo.exe
 certutil -hashfile demo.exe SHA256
 ```
+
+### LLM-Based File Classifier 🆕
+
+**Educational tool demonstrating AI-driven file classification for automated backups**
+
+```bash
+# Basic usage (rule-based classification)
+python3 llm_backup_classifier.py
+
+# With LLM API (Anthropic Claude)
+export ANTHROPIC_API_KEY="your-key"
+python3 llm_backup_classifier.py --llm-provider anthropic
+
+# Classification only (no backup creation)
+python3 llm_backup_classifier.py --no-backup
+```
+
+**What it does:**
+- Scans directory for files
+- Uses LLM to identify potentially sensitive files by filename
+- Creates timestamped backup copies (no encryption)
+- Generates classification report with confidence scores
+- **Original files remain unchanged**
+
+See [LLM_CLASSIFIER_README.md](LLM_CLASSIFIER_README.md) for full documentation.
 
 ---
 
