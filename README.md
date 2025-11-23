@@ -44,15 +44,19 @@ Polymorphic code changes its binary signature on each execution while maintainin
 |------|-------------|
 | `polymorphic_demo_linux.c` | Linux/ELF64 implementation (clean, educational) |
 | `polymorphic_demo_windows.c` | Windows/PE implementation (clean, educational) |
+| `llm_backup_classifier.c` | **NEW**: LLM-based file classifier for automated backups |
 | `main.c` | Original proof-of-concept (legacy) |
 | `TECHNICAL_DOCUMENTATION.md` | Comprehensive technical documentation |
+| `LLM_CLASSIFIER_README.md` | Documentation for LLM classifier tool |
 | `LICENSE` | MIT License |
 
 ---
 
 ## Quick Start
 
-### Linux
+### Polymorphic Code Demos
+
+#### Linux
 
 ```bash
 # Compile
@@ -67,7 +71,7 @@ sha256sum demo
 sha256sum demo
 ```
 
-### Windows
+#### Windows
 
 ```bash
 # Compile (MinGW)
@@ -84,6 +88,35 @@ certutil -hashfile demo.exe SHA256
 demo.exe
 certutil -hashfile demo.exe SHA256
 ```
+
+### LLM-Based File Classifier 🆕
+
+**Educational tool demonstrating AI-driven file classification for automated backups**
+
+```bash
+# Compile
+gcc -o llm_backup llm_backup_classifier.c -lcurl -ljson-c
+
+# Basic usage (rule-based classification)
+./llm_backup
+
+# Scan specific directory
+./llm_backup /path/to/directory
+```
+
+**What it does:**
+- Scans directory for files
+- Uses LLM to identify potentially sensitive files by filename
+- Creates timestamped backup copies (no encryption)
+- Generates classification report with confidence scores
+- **Original files remain unchanged**
+
+**Current implementation:**
+- Rule-based classification (demonstrates the concept)
+- Template includes commented LLM API integration code
+- Extensible for custom classification logic
+
+See [LLM_CLASSIFIER_README.md](LLM_CLASSIFIER_README.md) for full documentation.
 
 ---
 
