@@ -4,19 +4,26 @@
 
 This PR contains a comprehensive educational framework for studying polymorphic malware techniques and LLM-based threat detection. All implementations are completely benign with educational payloads, designed for training ML/LLM models and security research.
 
+**Status:** ✅ **All critical bugs fixed - production ready!**
+
 ## 🔐 Key Features
 
-### 1. Enhanced Polymorphic Executables (Multi-Platform)
+### 1. Enhanced Polymorphic Executables (Multi-Platform) ✅ WORKING
 
 **Two-Tier Encryption System:**
 - **Primary encryption**: Custom `.poly` section with polymorphic code
-- **File-level encryption**: Data sections (`.data`, `.rodata`/`.rdata`) encrypted before file creation
+- **File-level encryption**: Data sections (`.rodata`) encrypted before file creation
 - **Dual random keys**: Independent keys for each encryption layer
-- **Constructor-based decryption**: Sections decrypted before `main()` execution
+- **Key persistence**: Encryption keys stored in file and updated each execution
 
 **Cross-Platform Implementations:**
 - **Linux (ELF64)**: `polymorphic_demo_linux.c` - Clean implementation with multi-section encryption
 - **Windows (PE)**: `polymorphic_demo_windows.c` - Memory-mapped file approach with dual-key system
+
+**Critical Fixes Applied:**
+- ✅ Fixed segmentation fault (constructor circular dependency)
+- ✅ Fixed illegal instruction error (key persistence issue)
+- ✅ Fully tested and working on both platforms
 
 ### 2. LLM-Based File Classifier 🆕
 
@@ -150,7 +157,7 @@ This PR contains a comprehensive educational framework for studying polymorphic 
 
 2. **Implement multi-section file encryption before creation** (bd36603)
    - Two-tier encryption system
-   - Constructor-based decryption
+   - File-level section encryption
    - Enhanced polymorphic complexity
 
 3. **Add pull request template** (7bb8c01)
@@ -165,6 +172,21 @@ This PR contains a comprehensive educational framework for studying polymorphic 
    - Compiled language implementations only
    - Better systems integration
    - Template code for LLM APIs using libcurl + json-c
+
+6. **Add comprehensive PR description** (0e2d681)
+   - Detailed feature documentation
+
+7. **Fix segmentation fault in polymorphic demos** (0b6773e) 🔧
+   - Removed problematic constructor approach
+   - Fixed circular dependency with file_key in .data section
+   - Simplified encryption to avoid chicken-and-egg problem
+   - Only encrypt .rodata (safe, doesn't contain keys)
+
+8. **Fix illegal instruction error - persist encryption key** (26f415a) 🔧
+   - Read current key from file's .data section
+   - Store generated key back to file for next execution
+   - Fixed key persistence across executions
+   - Now properly decrypts with correct key each time
 
 ---
 
@@ -186,8 +208,11 @@ certutil -hashfile demo.exe SHA256
 **Verified:**
 - ✅ File hash changes on each execution
 - ✅ Multi-section encryption working
-- ✅ Constructor decryption functioning
+- ✅ Key persistence functioning correctly
+- ✅ No segmentation faults
+- ✅ No illegal instruction errors
 - ✅ Benign payload executes correctly
+- ✅ Works across multiple consecutive executions
 
 ### LLM Classifier
 ```bash
