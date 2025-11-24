@@ -145,6 +145,12 @@ void encrypt_file_sections(char* data, unsigned char* file_key) {
 
 void mutate(char* data, char* filename, int filesize) {
     Elf64_Shdr* section;
+    Elf64_Shdr* data_section;
+
+    // Find .data section (where our key variable is stored)
+    if (!(data_section = get_section(data, ".data"))) {
+        die(data, "Could not find .data section\n");
+    }
 
     // Find custom polymorphic section
     if (!(section = get_section(data, CUSTOM_SECTION))) {
@@ -153,6 +159,19 @@ void mutate(char* data, char* filename, int filesize) {
 
     printf("Found section '%s' at offset 0x%lx, size 0x%lx\n",
            CUSTOM_SECTION, section->sh_offset, section->sh_size);
+
+    // Calculate offset of 'key' variable in .data section
+    // The key is at the beginning of .data section (first static variable)
+    unsigned char* key_in_file = (unsigned char*)data + data_section->sh_offset;
+
+    // Copy current key from file to memory (for decryption)
+    memcpy(key, key_in_file, KEY_SIZE);
+
+    printf("Current key from file: ");
+    for (int i = 0; i < KEY_SIZE; i++) {
+        printf("%02x ", key[i]);
+    }
+    printf("\n");
 
     // Get runtime address of section
     unsigned char* runtime_addr = (unsigned char*)&__executable_start + section->sh_offset;
@@ -183,6 +202,9 @@ void mutate(char* data, char* filename, int filesize) {
         printf("%02x ", key[i]);
     }
     printf("\n");
+
+    // Update key in the file's .data section so next execution can decrypt
+    memcpy(key_in_file, key, KEY_SIZE);
 
     // Re-encrypt file copy with new key
     xor_crypt(file_section, section->sh_size);

